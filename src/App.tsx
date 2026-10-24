@@ -19,35 +19,49 @@ import { MediaGallery } from './components/MediaGallery';
 import { CommitteeDocuments } from './components/CommitteeDocuments';
 import { CheckCircle2, Shield, Heart } from 'lucide-react';
 
+function getSafeStorage<T>(key: string, fallback: T): T {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return fallback;
+    const saved = localStorage.getItem(key);
+    if (!saved) return fallback;
+    return JSON.parse(saved);
+  } catch {
+    return fallback;
+  }
+}
+
+function setSafeStorage(key: string, value: any): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch {}
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('scorecard');
   const [lang, setLang] = useState<'en' | 'si'>('en');
 
-  // Persistent / State collections
-  const [members, setMembers] = useState<Member[]>(() => {
-    const saved = localStorage.getItem('yssc_members');
-    return saved ? JSON.parse(saved) : INITIAL_MEMBERS;
-  });
+  // Persistent / State collections safely guarded
+  const [members, setMembers] = useState<Member[]>(() =>
+    getSafeStorage('yssc_members', INITIAL_MEMBERS)
+  );
 
-  const [squads, setSquads] = useState<TeamSquad[]>(() => {
-    const saved = localStorage.getItem('yssc_squads');
-    return saved ? JSON.parse(saved) : INITIAL_SQUADS;
-  });
+  const [squads, setSquads] = useState<TeamSquad[]>(() =>
+    getSafeStorage('yssc_squads', INITIAL_SQUADS)
+  );
 
-  const [matches, setMatches] = useState<MatchScorecard[]>(() => {
-    const saved = localStorage.getItem('yssc_matches');
-    return saved ? JSON.parse(saved) : INITIAL_MATCHES;
-  });
+  const [matches, setMatches] = useState<MatchScorecard[]>(() =>
+    getSafeStorage('yssc_matches', INITIAL_MATCHES)
+  );
 
-  const [transactions, setTransactions] = useState<FinancialTransaction[]>(() => {
-    const saved = localStorage.getItem('yssc_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>(() =>
+    getSafeStorage('yssc_transactions', INITIAL_TRANSACTIONS)
+  );
 
-  const [media, setMedia] = useState<MediaItem[]>(() => {
-    const saved = localStorage.getItem('yssc_media');
-    return saved ? JSON.parse(saved) : INITIAL_MEDIA;
-  });
+  const [media, setMedia] = useState<MediaItem[]>(() =>
+    getSafeStorage('yssc_media', INITIAL_MEDIA)
+  );
 
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -59,25 +73,25 @@ export default function App() {
     }, 3500);
   };
 
-  // Sync to localStorage
+  // Sync to localStorage safely
   useEffect(() => {
-    localStorage.setItem('yssc_members', JSON.stringify(members));
+    setSafeStorage('yssc_members', members);
   }, [members]);
 
   useEffect(() => {
-    localStorage.setItem('yssc_squads', JSON.stringify(squads));
+    setSafeStorage('yssc_squads', squads);
   }, [squads]);
 
   useEffect(() => {
-    localStorage.setItem('yssc_matches', JSON.stringify(matches));
+    setSafeStorage('yssc_matches', matches);
   }, [matches]);
 
   useEffect(() => {
-    localStorage.setItem('yssc_transactions', JSON.stringify(transactions));
+    setSafeStorage('yssc_transactions', transactions);
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem('yssc_media', JSON.stringify(media));
+    setSafeStorage('yssc_media', media);
   }, [media]);
 
   // Handlers

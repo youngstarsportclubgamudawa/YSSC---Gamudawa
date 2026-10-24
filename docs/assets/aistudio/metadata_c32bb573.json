@@ -1,0 +1,6 @@
+{
+  "name": "Young Star Sports Club Gamudawa",
+  "description": "Official club management portal for Young Star Sports Club Gamudawa: member registration, weekly dues, live Google Sheet payments, events schedule, management committee, and club documents.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

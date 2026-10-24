@@ -15,6 +15,15 @@
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-amber-100 selection:text-amber-900">
     <div id="root"></div>
+    <script>
+      // Automatic GitHub Pages static deployment fallback
+      if (window.location.hostname.includes('github.io')) {
+        if (!window.location.pathname.includes('/docs') && !window.location.pathname.includes('/dist')) {
+          var cleanPath = window.location.pathname.replace(/\/$/, '');
+          window.location.replace(cleanPath + '/docs/');
+        }
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
