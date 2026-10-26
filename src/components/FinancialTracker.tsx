@@ -1,8 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { FinancialTransaction, Member } from '../types';
 import { calculateLedgerSummary, calculateMemberArrears } from '../utils/sportsLogic';
-import { DollarSign, ArrowUpRight, ArrowDownRight, FileSpreadsheet, PlusCircle, Printer, Download, CheckCircle, RefreshCw, QrCode, X } from 'lucide-react';
+import {
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownRight,
+  FileSpreadsheet,
+  PlusCircle,
+  Printer,
+  Download,
+  CheckCircle,
+  RefreshCw,
+  QrCode,
+  X,
+  FolderOpen,
+  FileText,
+  ExternalLink,
+  LogOut,
+  Sparkles,
+} from 'lucide-react';
 import QRCode from 'qrcode';
+import {
+  googleSignIn,
+  logoutGoogle,
+  getAccessToken,
+  initAuth,
+} from '../services/googleAuth';
+import {
+  GOOGLE_DRIVE_FOLDER_ID,
+  GOOGLE_DRIVE_FOLDER_URL,
+  saveVisionMissionToGoogleDrive,
+  createAndSyncGoogleSheetInDrive,
+  listFilesInDriveFolder,
+  OFFICIAL_VISION_MISSION,
+} from '../services/googleDriveService';
+import { User } from 'firebase/auth';
 
 interface FinancialTrackerProps {
   transactions: FinancialTransaction[];
@@ -27,7 +59,130 @@ export const FinancialTracker: React.FC<FinancialTrackerProps> = ({
   const [viewReceiptModal, setViewReceiptModal] = useState<FinancialTransaction | null>(null);
   const [receiptQrUrl, setReceiptQrUrl] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSavingVision, setIsSavingVision] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [visionStatus, setVisionStatus] = useState<string | null>(null);
+  const [createdSheetUrl, setCreatedSheetUrl] = useState<string | null>(null);
+
+  // Google Auth & Drive state
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<Array<{ id: string; name: string; mimeType: string; webViewLink?: string }>>([]);
+
+  // Initialize Auth listener
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, userToken) => {
+        setGoogleUser(user);
+        setToken(userToken);
+        loadFolderFiles(userToken);
+      },
+      () => {
+        setGoogleUser(null);
+        setToken(null);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  const loadFolderFiles = async (tok: string) => {
+    try {
+      const files = await listFilesInDriveFolder(tok, GOOGLE_DRIVE_FOLDER_ID);
+      setDriveFiles(files);
+    } catch (e) {
+      console.warn('Could not list folder files:', e);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
+    setSyncStatus(null);
+    try {
+      const res = await googleSignIn();
+      if (res) {
+        setGoogleUser(res.user);
+        setToken(res.accessToken);
+        setSyncStatus(`✓ Connected as ${res.user.displayName || res.user.email}`);
+        await loadFolderFiles(res.accessToken);
+      }
+    } catch (err: any) {
+      setSyncStatus(`Authentication failed: ${err.message || err}`);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    await logoutGoogle();
+    setGoogleUser(null);
+    setToken(null);
+    setDriveFiles([]);
+    setSyncStatus('Logged out from Google Workspace.');
+  };
+
+  const handleSaveVisionToDrive = async () => {
+    let currentToken = token;
+    if (!currentToken) {
+      try {
+        const res = await googleSignIn();
+        if (res) {
+          currentToken = res.accessToken;
+          setGoogleUser(res.user);
+          setToken(res.accessToken);
+        }
+      } catch (err) {
+        setVisionStatus('Please sign in with Google to save to Drive.');
+        return;
+      }
+    }
+
+    if (!currentToken) return;
+
+    setIsSavingVision(true);
+    setVisionStatus('Uploading official Vision & Mission to Google Drive folder...');
+    try {
+      const result = await saveVisionMissionToGoogleDrive(currentToken);
+      setVisionStatus(`✓ Successfully saved "${result.name}" in Google Drive folder!`);
+      await loadFolderFiles(currentToken);
+    } catch (err: any) {
+      setVisionStatus(`Error saving to Drive: ${err.message}`);
+    } finally {
+      setIsSavingVision(false);
+    }
+  };
+
+  const handleCreateAndSyncSheet = async () => {
+    let currentToken = token;
+    if (!currentToken) {
+      try {
+        const res = await googleSignIn();
+        if (res) {
+          currentToken = res.accessToken;
+          setGoogleUser(res.user);
+          setToken(res.accessToken);
+        }
+      } catch (err) {
+        setSyncStatus('Please sign in with Google to sync with Drive.');
+        return;
+      }
+    }
+
+    if (!currentToken) return;
+
+    setIsSyncing(true);
+    setSyncStatus('Generating Google Sheet inside target Google Drive folder...');
+    try {
+      const result = await createAndSyncGoogleSheetInDrive(currentToken, members, transactions);
+      setCreatedSheetUrl(result.spreadsheetUrl);
+      setSyncStatus(`✓ Google Sheet created & synchronized in your Google Drive folder!`);
+      await loadFolderFiles(currentToken);
+    } catch (err: any) {
+      setSyncStatus(`Failed to sync with Google Sheets: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Form state
   const [selectedMemberId, setSelectedMemberId] = useState<string>(members[0]?.id || '');
@@ -430,63 +585,276 @@ export const FinancialTracker: React.FC<FinancialTrackerProps> = ({
         </div>
       )}
 
-      {/* Google Sheet Sync Tab */}
+      {/* Google Drive & Google Sheet Live Integration Tab */}
       {activeTab === 'gsheet' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-            <div className="flex items-start gap-3">
-              <div className="p-3 bg-emerald-50 rounded-xl text-emerald-700 border border-emerald-200">
-                <FileSpreadsheet className="w-6 h-6" />
+          {/* Top Auth and Target Folder Strip */}
+          <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0">
+                  <FolderOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-white">Target Google Drive Folder</h3>
+                    <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded font-mono font-semibold">
+                      ID: {GOOGLE_DRIVE_FOLDER_ID.substring(0, 8)}...
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Official Young Star Sports Club Gamudawa cloud repository
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900">
-                  Google Sheet Master Dues Synchronization
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Connected to: <strong>Young_Star_SC_Financial_Ledger_2026</strong>
-                </p>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={GOOGLE_DRIVE_FOLDER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold rounded-xl transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Folder in Google Drive</span>
+                </a>
+
+                {googleUser ? (
+                  <button
+                    onClick={handleGoogleLogout}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-red-900/40 text-red-300 text-xs font-semibold rounded-xl border border-slate-700 transition"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGoogleLogin}
+                    disabled={isLoggingIn}
+                    className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-xl shadow-md transition disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    <span>{isLoggingIn ? 'Connecting...' : 'Sign in with Google'}</span>
+                  </button>
+                )}
               </div>
             </div>
 
-            <button
-              onClick={handleTriggerGSheetSync}
-              disabled={isSyncing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition active:scale-95 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Syncing with Google Drive...' : 'Sync Now with Google Sheet'}</span>
-            </button>
+            {googleUser && (
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  {googleUser.photoURL ? (
+                    <img
+                      src={googleUser.photoURL}
+                      alt={googleUser.displayName || 'User'}
+                      className="w-5 h-5 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-[10px] font-bold">
+                      G
+                    </div>
+                  )}
+                  <span>
+                    Connected: <strong>{googleUser.displayName || googleUser.email}</strong>
+                  </span>
+                </div>
+                <span className="text-emerald-400 font-semibold">✓ Authorized for Drive & Sheets</span>
+              </div>
+            )}
           </div>
 
-          {syncStatus && (
-            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{syncStatus}</span>
-            </div>
-          )}
-
-          {/* Sheet Preview Simulation */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-700 uppercase tracking-wider">
-                Cloud Spreadsheet Feed Preview
-              </span>
-              <span className="text-slate-400">Auto-sync frequency: Every 15 minutes</span>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 space-y-2 overflow-x-auto">
-              <div className="text-slate-400">
-                // Google Sheets Webhook End-Point: https://docs.google.com/spreadsheets/d/1YSSC_GAMUDAWA_2026/edit
-              </div>
-              <div className="text-slate-800 font-bold">
-                [COL A: Timestamp] | [COL B: Reg No] | [COL C: Member Name] | [COL D: Amount LKR] | [COL E: Payment Ref] | [COL F: Status]
-              </div>
-              {transactions.slice(0, 4).map((t, i) => (
-                <div key={i} className="text-slate-600">
-                  {t.date} 10:00:00 | {t.receiptNumber} | {t.memberName} | {t.amount} LKR | {t.referenceNo} | VERIFIED_PAID
+          {/* Action Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Action 1: Save Vision & Mission */}
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-amber-100 text-amber-800 rounded-lg">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Official Vision & Mission Document
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      දැක්ම සහ මෙහෙවර නිල ප්‍රකාශනය
+                    </p>
+                  </div>
                 </div>
-              ))}
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Save the club's official Vision & Mission in English and Sinhala as a verified text document into your designated Google Drive folder.
+                </p>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                  <span className="font-bold text-slate-800 block">🎯 Vision Excerpt:</span>
+                  <p className="italic line-clamp-2">"{OFFICIAL_VISION_MISSION.visionEn}"</p>
+                  <p className="italic line-clamp-2 text-amber-800 pt-0.5">"{OFFICIAL_VISION_MISSION.visionSi}"</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                {visionStatus && (
+                  <div className="p-2.5 bg-amber-50 text-amber-900 text-xs rounded-lg border border-amber-200">
+                    {visionStatus}
+                  </div>
+                )}
+                <button
+                  onClick={handleSaveVisionToDrive}
+                  disabled={isSavingVision}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSavingVision ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isSavingVision ? 'Saving to Google Drive...' : 'Save Vision & Mission to Drive'}
+                  </span>
+                </button>
+              </div>
             </div>
+
+            {/* Action 2: Sync Weekly Dues Spreadsheet */}
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Weekly Dues & Ledger Google Sheet
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      සතිපතා මුදල් සහ ගිණුම් සටහන
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Generate or sync a 2-sheet Google Spreadsheet in your folder:
+                  1) <strong>Member Dues Matrix</strong> (Weeks 1 to {currentWeek}, arrears & settled status)
+                  2) <strong>Financial Ledger</strong> (All verified income & expense receipts).
+                </p>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1 font-mono">
+                  <div>• Sheet 1: Member Dues Matrix ({members.length} members)</div>
+                  <div>• Sheet 2: Financial Ledger ({transactions.length} transactions)</div>
+                  <div>• Rate: LKR 100/week · Week #{currentWeek}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                {syncStatus && (
+                  <div className="p-2.5 bg-emerald-50 text-emerald-900 text-xs rounded-lg border border-emerald-200">
+                    {syncStatus}
+                  </div>
+                )}
+
+                {createdSheetUrl && (
+                  <a
+                    href={createdSheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open in Google Sheets</span>
+                  </a>
+                )}
+
+                <button
+                  onClick={handleCreateAndSyncSheet}
+                  disabled={isSyncing}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isSyncing ? 'Syncing with Google Drive...' : 'Create & Sync Google Sheet in Drive'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Files Found in Target Google Drive Folder */}
+          <div className="pt-2 space-y-3">
+            <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
+              <span className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <FolderOpen className="w-4 h-4 text-amber-500" />
+                <span>Files in Drive Folder (1-FPe6LhIIC2hKXCrDE6hIbqNhhc7hz96)</span>
+              </span>
+              {googleUser && (
+                <button
+                  onClick={() => token && loadFolderFiles(token)}
+                  className="text-amber-600 hover:underline font-semibold"
+                >
+                  Refresh List
+                </button>
+              )}
+            </div>
+
+            {driveFiles.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {driveFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {file.mimeType.includes('spreadsheet') ? (
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                      )}
+                      <span className="font-bold text-slate-800 truncate">{file.name}</span>
+                    </div>
+
+                    {file.webViewLink && (
+                      <a
+                        href={file.webViewLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-amber-600 hover:text-amber-700 shrink-0"
+                        title="Open file"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500 space-y-1">
+                <p>
+                  Click <strong>"Save Vision & Mission to Drive"</strong> or <strong>"Create & Sync Google Sheet in Drive"</strong> above to upload records directly into your folder.
+                </p>
+                <a
+                  href={GOOGLE_DRIVE_FOLDER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-600 font-bold inline-flex items-center gap-1 hover:underline pt-1"
+                >
+                  <span>Open Folder in Google Drive</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}

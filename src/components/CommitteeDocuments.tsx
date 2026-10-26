@@ -1,6 +1,30 @@
 import React, { useState } from 'react';
 import { CommitteeMember, ClubDocument } from '../types';
-import { Users, FileText, Phone, Mail, Download, ShieldCheck, MapPin, Building, Eye, X } from 'lucide-react';
+import {
+  Users,
+  FileText,
+  Phone,
+  Mail,
+  Download,
+  ShieldCheck,
+  MapPin,
+  Building,
+  Eye,
+  X,
+  Target,
+  Sparkles,
+  FolderSync,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
+import {
+  OFFICIAL_VISION_MISSION,
+  saveVisionMissionToGoogleDrive,
+  GOOGLE_DRIVE_FOLDER_URL,
+} from '../services/googleDriveService';
+import { googleSignIn, getAccessToken } from '../services/googleAuth';
 
 interface CommitteeDocumentsProps {
   committee: CommitteeMember[];
@@ -14,9 +38,160 @@ export const CommitteeDocuments: React.FC<CommitteeDocumentsProps> = ({
   lang,
 }) => {
   const [activeDoc, setActiveDoc] = useState<ClubDocument | null>(null);
+  const [isSavingVision, setIsSavingVision] = useState(false);
+  const [visionSaveMsg, setVisionSaveMsg] = useState<{ type: 'success' | 'error'; text: string; link?: string } | null>(null);
+
+  const handleSaveVisionToDrive = async () => {
+    try {
+      setIsSavingVision(true);
+      setVisionSaveMsg(null);
+
+      let token = await getAccessToken();
+      if (!token) {
+        const signin = await googleSignIn();
+        token = signin?.accessToken || null;
+      }
+
+      if (!token) {
+        throw new Error('Google authorization is required to save to Drive.');
+      }
+
+      const res = await saveVisionMissionToGoogleDrive(token);
+      setVisionSaveMsg({
+        type: 'success',
+        text: lang === 'si'
+          ? 'දැක්ම සහ මෙහෙවර ලේඛනය ඔබගේ Google Drive ෆෝල්ඩරයේ සාර්ථකව සුරකින ලදී!'
+          : 'Official Vision & Mission successfully saved into the linked Google Drive folder!',
+        link: res.webViewLink || GOOGLE_DRIVE_FOLDER_URL,
+      });
+    } catch (err: any) {
+      setVisionSaveMsg({
+        type: 'error',
+        text: err?.message || 'Failed to upload document to Google Drive',
+      });
+    } finally {
+      setIsSavingVision(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
+      {/* Official Vision & Mission Card (Directly from User Attachment) */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-emerald-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/20 pb-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                <span>{lang === 'si' ? 'නිල ක්‍රීඩා සමාජ ප්‍රඥප්තිය' : 'Official Club Charter'}</span>
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">
+                {lang === 'si' ? OFFICIAL_VISION_MISSION.clubNameSi : OFFICIAL_VISION_MISSION.clubNameEn}
+              </h2>
+              <p className="text-xs text-amber-100 font-medium mt-0.5">
+                Reg: DS/SP/2018/14 · Gamudawa, Sri Lanka
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={GOOGLE_DRIVE_FOLDER_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-md text-white text-xs font-bold rounded-xl transition border border-white/20 shadow-sm"
+              >
+                <FolderSync className="w-4 h-4 text-amber-200" />
+                <span>Google Drive Folder</span>
+                <ExternalLink className="w-3 h-3 opacity-70" />
+              </a>
+
+              <button
+                onClick={handleSaveVisionToDrive}
+                disabled={isSavingVision}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-black rounded-xl transition shadow-md disabled:opacity-50"
+              >
+                {isSavingVision ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Save to Drive</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {visionSaveMsg && (
+            <div
+              className={`text-xs p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                visionSaveMsg.type === 'success'
+                  ? 'bg-emerald-950/70 border-emerald-400/50 text-emerald-100'
+                  : 'bg-rose-950/70 border-rose-400/50 text-rose-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {visionSaveMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-300 shrink-0" />
+                )}
+                <span>{visionSaveMsg.text}</span>
+              </div>
+              {visionSaveMsg.link && (
+                <a
+                  href={visionSaveMsg.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-bold underline text-white hover:text-amber-200 flex items-center gap-1 shrink-0"
+                >
+                  <span>Open</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Vision & Mission Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-1">
+            {/* Vision */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/15 space-y-3">
+              <div className="flex items-center gap-2 text-amber-200 font-bold text-sm">
+                <Target className="w-5 h-5" />
+                <span>🎯 {lang === 'si' ? 'අපගේ දැක්ම (Our Vision)' : 'Our Vision (අපගේ දැක්ම)'}</span>
+              </div>
+              <blockquote className="text-sm leading-relaxed italic text-white/95 border-l-2 border-amber-300 pl-3">
+                "{lang === 'si' ? OFFICIAL_VISION_MISSION.visionSi : OFFICIAL_VISION_MISSION.visionEn}"
+              </blockquote>
+              <p className="text-[11px] text-white/70 italic">
+                {lang === 'si' ? `[EN]: "${OFFICIAL_VISION_MISSION.visionEn}"` : `[SI]: "${OFFICIAL_VISION_MISSION.visionSi}"`}
+              </p>
+            </div>
+
+            {/* Mission */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/15 space-y-3">
+              <div className="flex items-center gap-2 text-amber-200 font-bold text-sm">
+                <Sparkles className="w-5 h-5" />
+                <span>🚀 {lang === 'si' ? 'අපගේ මෙහෙවර (Our Mission)' : 'Our Mission (අපගේ මෙහෙවර)'}</span>
+              </div>
+              <ul className="space-y-2 text-xs text-white/95">
+                {(lang === 'si' ? OFFICIAL_VISION_MISSION.missionSi : OFFICIAL_VISION_MISSION.missionEn).map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="font-bold text-amber-300">💪</span>
+                    <span className="leading-snug">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Executive Committee Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
