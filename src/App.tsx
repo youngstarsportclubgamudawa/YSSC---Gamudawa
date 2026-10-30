@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Member, TeamSquad, MatchScorecard, FinancialTransaction, MediaItem } from './types';
+import {
+  Member,
+  TeamSquad,
+  MatchScorecard,
+  FinancialTransaction,
+  MediaItem,
+  CommitteeMember,
+  ClubDocument,
+  ClubProfileInfo,
+  GplTeam,
+} from './types';
 import {
   INITIAL_MEMBERS,
   INITIAL_SQUADS,
@@ -8,15 +18,19 @@ import {
   INITIAL_MEDIA,
   INITIAL_COMMITTEE,
   INITIAL_DOCUMENTS,
+  INITIAL_CLUB_PROFILE,
 } from './data/initialData';
+import { INITIAL_GPL_TEAMS } from './data/initialGplTeams';
 import { Header } from './components/Header';
 import { LiveScorecard } from './components/LiveScorecard';
 import { MemberManagement } from './components/MemberManagement';
 import { TeamSquads } from './components/TeamSquads';
+import { TeamManagerPortal } from './components/TeamManagerPortal';
 import { TournamentsFixtures } from './components/TournamentsFixtures';
 import { FinancialTracker } from './components/FinancialTracker';
 import { MediaGallery } from './components/MediaGallery';
 import { CommitteeDocuments } from './components/CommitteeDocuments';
+import { GoogleSheetsLiveManager } from './components/GoogleSheetsLiveManager';
 import { CheckCircle2, Shield, Heart } from 'lucide-react';
 
 function getSafeStorage<T>(key: string, fallback: T): T {
@@ -63,6 +77,22 @@ export default function App() {
     getSafeStorage('yssc_media', INITIAL_MEDIA)
   );
 
+  const [committee, setCommittee] = useState<CommitteeMember[]>(() =>
+    getSafeStorage('yssc_committee', INITIAL_COMMITTEE)
+  );
+
+  const [documents, setDocuments] = useState<ClubDocument[]>(() =>
+    getSafeStorage('yssc_documents', INITIAL_DOCUMENTS)
+  );
+
+  const [clubProfile, setClubProfile] = useState<ClubProfileInfo>(() =>
+    getSafeStorage('yssc_club_profile', INITIAL_CLUB_PROFILE)
+  );
+
+  const [gplTeams, setGplTeams] = useState<GplTeam[]>(() =>
+    getSafeStorage('yssc_gpl_teams', INITIAL_GPL_TEAMS)
+  );
+
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -72,6 +102,10 @@ export default function App() {
       setToastMessage(null);
     }, 3500);
   };
+
+  useEffect(() => {
+    setSafeStorage('yssc_gpl_teams', gplTeams);
+  }, [gplTeams]);
 
   // Sync to localStorage safely
   useEffect(() => {
@@ -93,6 +127,18 @@ export default function App() {
   useEffect(() => {
     setSafeStorage('yssc_media', media);
   }, [media]);
+
+  useEffect(() => {
+    setSafeStorage('yssc_committee', committee);
+  }, [committee]);
+
+  useEffect(() => {
+    setSafeStorage('yssc_documents', documents);
+  }, [documents]);
+
+  useEffect(() => {
+    setSafeStorage('yssc_club_profile', clubProfile);
+  }, [clubProfile]);
 
   // Handlers
   const handleAddMember = (newMember: Member) => {
@@ -186,6 +232,14 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'gpl_manager' && (
+          <TeamManagerPortal
+            teams={gplTeams}
+            setTeams={setGplTeams}
+            lang={lang}
+          />
+        )}
+
         {activeTab === 'tournaments' && (
           <TournamentsFixtures
             matches={matches}
@@ -207,6 +261,30 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'gsheet' && (
+          <GoogleSheetsLiveManager
+            members={members}
+            setMembers={setMembers}
+            matches={matches}
+            setMatches={setMatches}
+            squads={squads}
+            setSquads={setSquads}
+            transactions={transactions}
+            setTransactions={setTransactions}
+            committee={committee}
+            setCommittee={setCommittee}
+            documents={documents}
+            setDocuments={setDocuments}
+            media={media}
+            setMedia={setMedia}
+            clubProfile={clubProfile}
+            setClubProfile={setClubProfile}
+            onAddTransaction={handleAddTransaction}
+            onUpdateMemberDues={handleUpdateMemberDues}
+            lang={lang}
+          />
+        )}
+
         {activeTab === 'gallery' && (
           <MediaGallery
             media={media}
@@ -217,11 +295,12 @@ export default function App() {
 
         {activeTab === 'committee' && (
           <CommitteeDocuments
-            committee={INITIAL_COMMITTEE}
-            documents={INITIAL_DOCUMENTS}
+            committee={committee}
+            documents={documents}
             lang={lang}
           />
         )}
+
       </main>
 
       {/* Toast Feedback */}

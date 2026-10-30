@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, Users, Shield, Calendar, DollarSign, Camera, FileText, Globe, Share2, Menu, X } from 'lucide-react';
+import { Trophy, Users, Shield, Calendar, DollarSign, Camera, FileText, Globe, Share2, Menu, X, FileSpreadsheet, UserCheck } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -39,6 +39,13 @@ export const Header: React.FC<HeaderProps> = ({
       icon: Shield,
     },
     {
+      id: 'gpl_manager',
+      labelEn: 'Team Manager',
+      labelSi: 'කණ්ඩායම් කළමනාකරු',
+      icon: UserCheck,
+      badge: 'GPL 2026',
+    },
+    {
       id: 'tournaments',
       labelEn: 'Tournaments',
       labelSi: 'තරඟාවලි',
@@ -49,6 +56,13 @@ export const Header: React.FC<HeaderProps> = ({
       labelEn: 'Weekly Dues',
       labelSi: 'සති මුදල්',
       icon: DollarSign,
+    },
+    {
+      id: 'gsheet',
+      labelEn: 'Live Google Sheet',
+      labelSi: 'සජීවී ගූගල් ෂීට්',
+      icon: FileSpreadsheet,
+      badge: 'LIVE SYNC',
     },
     {
       id: 'gallery',
@@ -66,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleShareToWhatsApp = () => {
     const text = encodeURIComponent(
-      `🏆 Young Star Sports Club Gamudawa (තරුණ තරු ක්‍රීඩා සමාජය ගම්උදාව)\nCheck out our official portal for live match scorecards, tournaments, and member updates!\n${window.location.href}`
+      `🏆 Young Star Sport Club Gamudawa (තරුණ තරු ක්‍රීඩා සමාජය ගම්උදාව)\nCheck out our official portal for live match scorecards, tournaments, and member updates!\n${window.location.href}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
@@ -77,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-semibold tracking-wide flex justify-between items-center">
         <div className="flex items-center gap-2 truncate">
           <span className="w-2 h-2 rounded-full bg-emerald-700 animate-ping inline-block" />
-          <span>{lang === 'si' ? 'තරුණ තරු ක්‍රීඩා සමාජය ගම්උදාව · නිල කළමනාකරණ පද්ධතිය' : 'Young Star Sports Club Gamudawa · Official Sports & Club Portal'}</span>
+          <span>{lang === 'si' ? 'තරුණ තරු ක්‍රීඩා සමාජය ගම්උදාව · නිල කළමනාකරණ පද්ධතිය' : 'Young Star Sport Club Gamudawa · Official Sports & Club Portal'}</span>
         </div>
         <div className="flex items-center gap-4 text-xs font-medium shrink-0">
           <span className="hidden sm:inline">Reg: DS/SP/2018/14</span>
@@ -100,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight">
-                  Young Star SC
+                  Young Star Sport Club
                 </span>
                 <span className="text-xs bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30 font-semibold tracking-wider">
                   GAMUDAWA

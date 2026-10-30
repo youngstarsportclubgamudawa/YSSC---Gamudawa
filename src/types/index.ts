@@ -145,3 +145,61 @@ export interface ClubDocument {
   fileSize: string;
   description: string;
 }
+
+export interface ClubProfileInfo {
+  clubNameEn: string;
+  clubNameSi: string;
+  regNumber: string;
+  establishedYear: string;
+  homeGroundEn: string;
+  homeGroundSi: string;
+  email: string;
+  phone: string;
+  visionEn: string;
+  visionSi: string;
+  missionEn: string[];
+  missionSi: string[];
+  weeklyDuesRate: number;
+  currentWeek: number;
+}
+
+export type GplJerseySize = 'S' | 'M' | 'L' | 'XL' | 'XXL';
+export type GplPlayingRole = 'Batsman' | 'Bowler' | 'All-rounder' | 'Wicket-keeper';
+export type GplPaymentStatus = 'Advance Rs. 1,500 Paid' | 'Full Paid (Rs. 3,000)' | 'Pending';
+
+export interface GplPlayer {
+  id: string;
+  slot: number; // 1 to 11
+  name: string;
+  sinhalaName?: string;
+  role: GplPlayingRole;
+  jerseySize: GplJerseySize;
+  jerseyNumber: number;
+  paymentStatus: GplPaymentStatus;
+  phone: string;
+  nic: string;
+  photoUrl: string;
+  isCaptain?: boolean;
+  isViceCaptain?: boolean;
+  photoFileName?: string;
+  drivePhotoId?: string;
+  notes?: string;
+}
+
+export interface GplTeam {
+  id: string;
+  teamNumber: number; // 1 to 6
+  name: string;
+  sinhalaName: string;
+  color: string;
+  badge: string;
+  gradient: string;
+  managerName: string;
+  managerPhone: string;
+  captainName: string;
+  viceCaptainName: string;
+  players: GplPlayer[];
+  lastDriveSyncTime?: string;
+  driveFolderUrl?: string;
+}
+

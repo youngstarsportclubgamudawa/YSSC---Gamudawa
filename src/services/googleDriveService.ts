@@ -1,11 +1,13 @@
-import { Member, FinancialTransaction } from '../types';
+import { Member, FinancialTransaction, ClubProfileInfo, GplTeam, GplPlayer } from '../types';
 
 export const GOOGLE_DRIVE_FOLDER_ID = '1-FPe6LhIIC2hKXCrDE6hIbqNhhc7hz96';
 export const GOOGLE_DRIVE_FOLDER_URL = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_FOLDER_ID}?usp=drive_link`;
 
 export const OFFICIAL_VISION_MISSION = {
-  clubNameEn: 'Young Star Sports Club - Gamudawa',
+  clubNameEn: 'Young Star Sport Club - Gamudawa',
   clubNameSi: 'තරුණ තරු ක්‍රීඩා සමාජය - ගම්උදාව',
+  regNumber: 'DS/SP/2018/14',
+  email: 'youngstarsportclubgamudawa@gmail.com',
   visionEn: 'To be a leading sports community that empowers local youth through sportsmanship, discipline, and unity, producing healthy, responsible citizens and exceptional athletes who bring pride to our village and the nation.',
   visionSi: 'ක්‍රීඩාශීලිත්වය, විනය සහ එකමුතුකම තුළින් ප්‍රදේශයේ තරුණ පරපුර බලගන්වමින්, නිරෝගී, වගකිවයුතු පුරවැසියන් සහ අපේ ගමටත් මව්බිමටත් අභිමානයක් ගෙනෙන විශිෂ්ටතම ක්‍රීඩකයින් පිරිසක් බිහි කරන පෙරගමන්කරු වීම.',
   missionEn: [
@@ -21,6 +23,125 @@ export const OFFICIAL_VISION_MISSION = {
     'ප්‍රදේශයේ ක්‍රීඩා ක්ෂේත්‍රය නංවාලීම උදෙසා ක්‍රීඩා තරඟ සහ ප්‍රජා සත්කාරක වැඩසටහන් අඛණ්ඩව සංවිධානය කිරීම.',
   ],
 };
+
+/**
+ * Generates the exact CSV content matching the user's official Excel template.
+ */
+export function generateExactCharterCSVContent(profile?: Partial<ClubProfileInfo>): string {
+  const p = {
+    visionEn: profile?.visionEn || OFFICIAL_VISION_MISSION.visionEn,
+    visionSi: profile?.visionSi || OFFICIAL_VISION_MISSION.visionSi,
+    missionEn: profile?.missionEn || OFFICIAL_VISION_MISSION.missionEn,
+    missionSi: profile?.missionSi || OFFICIAL_VISION_MISSION.missionSi,
+  };
+
+  const escapeCSV = (str: string) => {
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  return [
+    ',',
+    'Young Star Sport Club,',
+    'Gamudawa,',
+    ',',
+    ',',
+    '🎯 Our Vision (අපගේ දැක්ම),',
+    ',',
+    `," ""${p.visionEn}"""`,
+    ',',
+    `," ""${p.visionSi}"""`,
+    ',',
+    '🚀 Our Mission (අපගේ මෙහෙවර),',
+    ',',
+    `💪,${escapeCSV(p.missionEn[0] || OFFICIAL_VISION_MISSION.missionEn[0])}`,
+    ',',
+    `💪,${escapeCSV(p.missionEn[1] || OFFICIAL_VISION_MISSION.missionEn[1])}`,
+    ',',
+    `💪,${escapeCSV(p.missionEn[2] || OFFICIAL_VISION_MISSION.missionEn[2])}`,
+    ',',
+    `💪,${escapeCSV(p.missionEn[3] || OFFICIAL_VISION_MISSION.missionEn[3])}`,
+    ',',
+    ',',
+    `💪,${escapeCSV(p.missionSi[0] || OFFICIAL_VISION_MISSION.missionSi[0])}`,
+    ',',
+    `💪,${escapeCSV(p.missionSi[1] || OFFICIAL_VISION_MISSION.missionSi[1])}`,
+    ',',
+    `💪,${escapeCSV(p.missionSi[2] || OFFICIAL_VISION_MISSION.missionSi[2])}`,
+    ',',
+    `💪,${escapeCSV(p.missionSi[3] || OFFICIAL_VISION_MISSION.missionSi[3])}`,
+  ].join('\r\n');
+}
+
+/**
+ * Parses user-uploaded or edited CSV file into club profile structure.
+ */
+export function parseExactCharterCSV(csvText: string): Partial<ClubProfileInfo> {
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim());
+  const cleanCell = (cell: string) => cell.replace(/^"(.*)"$/, '$1').replace(/""/g, '"').trim();
+
+  let visionEn = '';
+  let visionSi = '';
+  const missionEn: string[] = [];
+  const missionSi: string[] = [];
+
+  let inVisionSection = false;
+  let inMissionSection = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+
+    if (line.includes('Vision') || line.includes('දැක්ම')) {
+      inVisionSection = true;
+      inMissionSection = false;
+      continue;
+    }
+
+    if (line.includes('Mission') || line.includes('මෙහෙවර')) {
+      inMissionSection = true;
+      inVisionSection = false;
+      continue;
+    }
+
+    if (inVisionSection) {
+      const parts = line.split(',');
+      const text = cleanCell(parts.slice(1).join(','));
+      if (text) {
+        // Distinguish English from Sinhala by presence of Sinhala unicode characters
+        const isSinhala = /[\u0D80-\u0DFF]/.test(text);
+        if (isSinhala && !visionSi) {
+          visionSi = text;
+        } else if (!isSinhala && !visionEn) {
+          visionEn = text;
+        }
+      }
+    } else if (inMissionSection) {
+      if (line.includes('💪')) {
+        const parts = line.split(',');
+        const text = cleanCell(parts.slice(1).join(','));
+        if (text && text !== '💪') {
+          const isSinhala = /[\u0D80-\u0DFF]/.test(text);
+          if (isSinhala) {
+            missionSi.push(text);
+          } else {
+            missionEn.push(text);
+          }
+        }
+      }
+    }
+  }
+
+  const result: Partial<ClubProfileInfo> = {};
+  if (visionEn) result.visionEn = visionEn;
+  if (visionSi) result.visionSi = visionSi;
+  if (missionEn.length > 0) result.missionEn = missionEn;
+  if (missionSi.length > 0) result.missionSi = missionSi;
+
+  return result;
+}
 
 /**
  * Creates a file in the user's specific Google Drive folder using multipart upload.
@@ -72,13 +193,31 @@ export async function uploadFileToDriveFolder(
 }
 
 /**
- * Saves the official Vision & Mission statement into the specified Google Drive folder.
+ * Saves the official CSV charter directly into the specified Google Drive folder.
+ */
+export async function saveExactCharterCSVToGoogleDrive(
+  accessToken: string,
+  profile?: ClubProfileInfo
+): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const csvContent = generateExactCharterCSVContent(profile);
+  return await uploadFileToDriveFolder(
+    accessToken,
+    'Young_Star_Sport_Club_Gamudawa.csv',
+    'text/csv',
+    csvContent
+  );
+}
+
+/**
+ * Saves the official Vision & Mission statement text into the specified Google Drive folder.
  */
 export async function saveVisionMissionToGoogleDrive(
-  accessToken: string
+  accessToken: string,
+  profile?: ClubProfileInfo
 ): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const p = profile || (OFFICIAL_VISION_MISSION as any);
   const fileContent = `========================================================================
-YOUNG STAR SPORTS CLUB - GAMUDAWA
+YOUNG STAR SPORT CLUB - GAMUDAWA
 තරුණ තරු ක්‍රීඩා සමාජය - ගම්උදාව
 Official Vision & Mission Statement / නිල දැක්ම සහ මෙහෙවර
 Registration No: DS/SP/2018/14 · Gamudawa, Sri Lanka
@@ -87,35 +226,35 @@ Registration No: DS/SP/2018/14 · Gamudawa, Sri Lanka
 🎯 OUR VISION (අපගේ දැක්ම):
 ------------------------------------------------------------------------
 [English]:
-"${OFFICIAL_VISION_MISSION.visionEn}"
+"${p.visionEn || OFFICIAL_VISION_MISSION.visionEn}"
 
 [සිංහල]:
-"${OFFICIAL_VISION_MISSION.visionSi}"
+"${p.visionSi || OFFICIAL_VISION_MISSION.visionSi}"
 
 ========================================================================
 🚀 OUR MISSION (අපගේ මෙහෙවර):
 ------------------------------------------------------------------------
 [English]:
-1. ${OFFICIAL_VISION_MISSION.missionEn[0]}
-2. ${OFFICIAL_VISION_MISSION.missionEn[1]}
-3. ${OFFICIAL_VISION_MISSION.missionEn[2]}
-4. ${OFFICIAL_VISION_MISSION.missionEn[3]}
+1. ${p.missionEn?.[0] || OFFICIAL_VISION_MISSION.missionEn[0]}
+2. ${p.missionEn?.[1] || OFFICIAL_VISION_MISSION.missionEn[1]}
+3. ${p.missionEn?.[2] || OFFICIAL_VISION_MISSION.missionEn[2]}
+4. ${p.missionEn?.[3] || OFFICIAL_VISION_MISSION.missionEn[3]}
 
 [සිංහල]:
-1. ${OFFICIAL_VISION_MISSION.missionSi[0]}
-2. ${OFFICIAL_VISION_MISSION.missionSi[1]}
-3. ${OFFICIAL_VISION_MISSION.missionSi[2]}
-4. ${OFFICIAL_VISION_MISSION.missionSi[3]}
+1. ${p.missionSi?.[0] || OFFICIAL_VISION_MISSION.missionSi[0]}
+2. ${p.missionSi?.[1] || OFFICIAL_VISION_MISSION.missionSi[1]}
+3. ${p.missionSi?.[2] || OFFICIAL_VISION_MISSION.missionSi[2]}
+4. ${p.missionSi?.[3] || OFFICIAL_VISION_MISSION.missionSi[3]}
 
 ========================================================================
-Saved from Young Star Sports Club Gamudawa Management Portal
+Saved from Young Star Sport Club Gamudawa Management Portal
 Date: ${new Date().toLocaleString()}
 Target Folder ID: ${GOOGLE_DRIVE_FOLDER_ID}
 `;
 
   return await uploadFileToDriveFolder(
     accessToken,
-    'Young_Star_Sports_Club_Gamudawa_Vision_and_Mission.txt',
+    'Young_Star_Sport_Club_Gamudawa_Vision_and_Mission.txt',
     'text/plain',
     fileContent
   );
@@ -281,4 +420,206 @@ export async function listFilesInDriveFolder(
     console.error('Failed to list files in folder:', err);
     return [];
   }
+}
+
+/**
+ * Creates a subfolder in Google Drive under a parent folder.
+ */
+export async function createDriveFolder(
+  accessToken: string,
+  folderName: string,
+  parentFolderId: string = GOOGLE_DRIVE_FOLDER_ID
+): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const metadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [parentFolderId],
+  };
+
+  const res = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(metadata),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to create Drive folder (${res.status}): ${errorText}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Uploads a base64 player portrait photo to a Google Drive folder.
+ */
+export async function uploadBase64ImageToDriveFolder(
+  accessToken: string,
+  fileName: string,
+  dataUrl: string,
+  folderId: string = GOOGLE_DRIVE_FOLDER_ID
+): Promise<{ id: string; name: string; webViewLink?: string }> {
+  // Extract mime type and base64 payload
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  const mimeType = match ? match[1] : 'image/jpeg';
+  const base64Data = match ? match[2] : dataUrl;
+
+  // Convert base64 to binary string for multipart body
+  const binaryString = atob(base64Data);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  const metadata = {
+    name: fileName,
+    parents: [folderId],
+    mimeType: mimeType,
+  };
+
+  const boundary = '-------gplphotoupload314159265';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+
+  // Build binary multipart body
+  const metaHeader =
+    delimiter +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter +
+    `Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n` +
+    base64Data +
+    closeDelimiter;
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+      },
+      body: metaHeader,
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Player photo upload to Drive failed (${res.status}): ${errText}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Formats a GPL team squad into CSV format for Microsoft Excel.
+ */
+export function generateTeamSquadCSV(team: GplTeam): string {
+  const escapeCSV = (str: any) => {
+    const text = String(str || '');
+    if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const headers = [
+    'Slot #',
+    'Jersey No',
+    'Player Official Name',
+    'Sinhala Name',
+    'Playing Role',
+    'Jersey Size',
+    'Payment Status',
+    'Contact Phone',
+    'NIC Number',
+    'Team Honor (C / VC)',
+    'Photo Reference',
+  ];
+
+  const rows = team.players.map((p) => [
+    p.slot,
+    p.jerseyNumber,
+    escapeCSV(p.name),
+    escapeCSV(p.sinhalaName || ''),
+    escapeCSV(p.role),
+    p.jerseySize,
+    escapeCSV(p.paymentStatus),
+    escapeCSV(p.phone),
+    escapeCSV(p.nic),
+    p.isCaptain ? 'Captain (C)' : p.isViceCaptain ? 'Vice-Captain (VC)' : 'Squad Player',
+    p.photoUrl?.startsWith('data:') ? 'Local Image Attached' : escapeCSV(p.photoUrl || ''),
+  ]);
+
+  const metaRows = [
+    ['Gamudawa Premier League (GPL 2026) - Official Team Squad Roster'],
+    [`Team: ${team.name} (${team.sinhalaName})`],
+    [`Manager: ${team.managerName} (${team.managerPhone})`],
+    [`Captain: ${team.captainName} | Vice-Captain: ${team.viceCaptainName}`],
+    [`Export Date: ${new Date().toLocaleString()}`],
+    [],
+  ];
+
+  const fullGrid = [
+    ...metaRows.map((r) => r.join(',')),
+    headers.join(','),
+    ...rows.map((r) => r.join(',')),
+  ];
+
+  return fullGrid.join('\r\n');
+}
+
+/**
+ * Synchronizes an entire GPL Team Squad (JSON, CSV, and player photos) to Google Drive.
+ */
+export async function saveTeamSquadToGoogleDrive(
+  accessToken: string,
+  team: GplTeam,
+  parentFolderId: string = GOOGLE_DRIVE_FOLDER_ID
+): Promise<{
+  folderId: string;
+  folderUrl: string;
+  uploadedPhotoCount: number;
+  csvFileName: string;
+}> {
+  // Step 1: Create a dedicated Team Folder inside Google Drive
+  const teamFolderName = `GPL_2026_Team_${String(team.teamNumber).padStart(2, '0')}_${team.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const teamFolder = await createDriveFolder(accessToken, teamFolderName, parentFolderId);
+  const targetFolderId = teamFolder.id;
+  const folderUrl = teamFolder.webViewLink || `https://drive.google.com/drive/folders/${targetFolderId}`;
+
+  // Step 2: Upload CSV Roster
+  const csvContent = generateTeamSquadCSV(team);
+  const csvFileName = `GPL2026_Team_${team.teamNumber}_Roster.csv`;
+  await uploadFileToDriveFolder(accessToken, csvFileName, 'text/csv', csvContent, targetFolderId);
+
+  // Step 3: Upload JSON Roster
+  const jsonContent = JSON.stringify(team, null, 2);
+  const jsonFileName = `GPL2026_Team_${team.teamNumber}_Data.json`;
+  await uploadFileToDriveFolder(accessToken, jsonFileName, 'application/json', jsonContent, targetFolderId);
+
+  // Step 4: Upload all player photos that have local uploaded base64 data
+  let uploadedPhotoCount = 0;
+  for (const player of team.players) {
+    if (player.photoUrl && player.photoUrl.startsWith('data:image')) {
+      try {
+        const photoName = `Player_${String(player.slot).padStart(2, '0')}_No${player.jerseyNumber}_${player.name.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+        await uploadBase64ImageToDriveFolder(accessToken, photoName, player.photoUrl, targetFolderId);
+        uploadedPhotoCount++;
+      } catch (photoErr) {
+        console.warn(`Failed to upload photo for ${player.name}:`, photoErr);
+      }
+    }
+  }
+
+  return {
+    folderId: targetFolderId,
+    folderUrl,
+    uploadedPhotoCount,
+    csvFileName,
+  };
 }

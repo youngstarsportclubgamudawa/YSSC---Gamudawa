@@ -22,6 +22,8 @@ import {
 import {
   OFFICIAL_VISION_MISSION,
   saveVisionMissionToGoogleDrive,
+  saveExactCharterCSVToGoogleDrive,
+  generateExactCharterCSVContent,
   GOOGLE_DRIVE_FOLDER_URL,
 } from '../services/googleDriveService';
 import { googleSignIn, getAccessToken } from '../services/googleAuth';
@@ -74,6 +76,52 @@ export const CommitteeDocuments: React.FC<CommitteeDocumentsProps> = ({
     }
   };
 
+  const handleSaveCSVToDrive = async () => {
+    try {
+      setIsSavingVision(true);
+      setVisionSaveMsg(null);
+
+      let token = await getAccessToken();
+      if (!token) {
+        const signin = await googleSignIn();
+        token = signin?.accessToken || null;
+      }
+
+      if (!token) {
+        throw new Error('Google authorization is required to save to Drive.');
+      }
+
+      const res = await saveExactCharterCSVToGoogleDrive(token);
+      setVisionSaveMsg({
+        type: 'success',
+        text: lang === 'si'
+          ? 'නිල Excel/CSV ප්‍රඥප්ති ලේඛනය (Young_Star_Sport_Club_Gamudawa.csv) ඔබගේ Google Drive ෆෝල්ඩරයේ සුරකින ලදී!'
+          : 'Official Excel/CSV Charter file (Young_Star_Sport_Club_Gamudawa.csv) saved to Google Drive!',
+        link: res.webViewLink || GOOGLE_DRIVE_FOLDER_URL,
+      });
+    } catch (err: any) {
+      setVisionSaveMsg({
+        type: 'error',
+        text: err?.message || 'Failed to upload CSV to Google Drive',
+      });
+    } finally {
+      setIsSavingVision(false);
+    }
+  };
+
+  const handleDownloadCharterCSV = () => {
+    const csvContent = generateExactCharterCSVContent();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.setAttribute('download', 'Young_Star_Sport_Club_Gamudawa.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8">
       {/* Official Vision & Mission Card (Directly from User Attachment) */}
@@ -103,14 +151,15 @@ export const CommitteeDocuments: React.FC<CommitteeDocumentsProps> = ({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-md text-white text-xs font-bold rounded-xl transition border border-white/20 shadow-sm"
               >
                 <FolderSync className="w-4 h-4 text-amber-200" />
-                <span>Google Drive Folder</span>
+                <span>Drive Folder</span>
                 <ExternalLink className="w-3 h-3 opacity-70" />
               </a>
 
               <button
-                onClick={handleSaveVisionToDrive}
+                onClick={handleSaveCSVToDrive}
                 disabled={isSavingVision}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-black rounded-xl transition shadow-md disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white text-emerald-950 hover:bg-emerald-50 text-xs font-black rounded-xl transition shadow-md disabled:opacity-50"
+                title="Save exact CSV file into Google Drive folder"
               >
                 {isSavingVision ? (
                   <>
@@ -119,10 +168,19 @@ export const CommitteeDocuments: React.FC<CommitteeDocumentsProps> = ({
                   </>
                 ) : (
                   <>
-                    <Download className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Save to Drive</span>
+                    <FolderSync className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Save CSV to Drive</span>
                   </>
                 )}
+              </button>
+
+              <button
+                onClick={handleDownloadCharterCSV}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black rounded-xl transition shadow-md"
+                title="Download Young_Star_Sport_Club_Gamudawa.csv for Excel"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-950" />
+                <span>Excel / CSV</span>
               </button>
             </div>
           </div>

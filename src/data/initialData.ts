@@ -1,4 +1,31 @@
-import { Member, TeamSquad, MatchScorecard, FinancialTransaction, MediaItem, CommitteeMember, ClubDocument } from '../types';
+import { Member, TeamSquad, MatchScorecard, FinancialTransaction, MediaItem, CommitteeMember, ClubDocument, ClubProfileInfo } from '../types';
+
+export const INITIAL_CLUB_PROFILE: ClubProfileInfo = {
+  clubNameEn: 'Young Star Sport Club - Gamudawa',
+  clubNameSi: 'තරුණ තරු ක්‍රීඩා සමාජය - ගම්උදාව',
+  regNumber: 'DS/SP/2018/14',
+  establishedYear: '2018',
+  homeGroundEn: 'Gamudawa Mahinda Rajapaksa Sports Ground',
+  homeGroundSi: 'ගම්උදාව මහින්ද රාජපක්ෂ ක්‍රීඩාංගණය',
+  email: 'youngstarsportclubgamudawa@gmail.com',
+  phone: '+94 77 999 1122',
+  visionEn: 'To be a leading sports community that empowers local youth through sportsmanship, discipline, and unity, producing healthy, responsible citizens and exceptional athletes who bring pride to our village and the nation.',
+  visionSi: 'ක්‍රීඩාශීලිත්වය, විනය සහ එකමුතුකම තුළින් ප්‍රදේශයේ තරුණ පරපුර බලගන්වමින්, නිරෝගී, වගකිවයුතු පුරවැසියන් සහ අපේ ගමටත් මව්බිමටත් අභිමානයක් ගෙනෙන විශිෂ්ටතම ක්‍රීඩකයින් පිරිසක් බිහි කරන පෙරගමන්කරු වීම.',
+  missionEn: [
+    'To provide a safe, encouraging environment for youth to develop their sports talents and leadership skills.',
+    'To foster strong bonds of brotherhood and mutual respect within our village community.',
+    'To promote health, fitness, and a drug-free, active lifestyle among the younger generation.',
+    'To organize tournaments and community projects that uplift our local sports infrastructure.',
+  ],
+  missionSi: [
+    'තරුණ පරපුරේ ක්‍රීඩා දක්ෂතා සහ නායකත්ව හැකියාවන් වර්ධනය කරගැනීම සඳහා ආරක්ෂිත, දිරිගන්වනසුලු වටපිටාවක් නිර්මාණය කිරීම.',
+    'ගමේ සමස්ත ප්‍රජාව අතර ශක්තිමත් සහෝදරත්වයක් සහ අන්‍යෝන්‍ය ගෞරවයක් වර්ධනය කිරීම.',
+    'තරුණ පරපුර අතර නිරෝගීකම, ක්‍රියාශීලී ජීවන රටාව සහ මත්ද්‍රව්‍යවලින් තොර යහපත් සමාජයක් ප්‍රවර්ධනය කිරීම.',
+    'ප්‍රදේශයේ ක්‍රීඩා ක්ෂේත්‍රය නංවාලීම උදෙසා ක්‍රීඩා තරඟ සහ ප්‍රජා සත්කාරක වැඩසටහන් අඛණ්ඩව සංවිධානය කිරීම.',
+  ],
+  weeklyDuesRate: 100,
+  currentWeek: 14,
+};
 
 export const INITIAL_MEMBERS: Member[] = [
   {
@@ -278,7 +305,7 @@ export const INITIAL_MATCHES: MatchScorecard[] = [
     title: 'Gamudawa Trophy T20 Semi-Final',
     tournamentName: 'Gamudawa Premier Champions Trophy 2026',
     sport: 'Cricket',
-    date: '2026-10-24',
+    date: '2026-10-27',
     time: '02:30 PM (SLST)',
     venue: 'Gamudawa Mahinda Rajapaksa Ground (Turf 1)',
     status: 'live',
@@ -326,7 +353,7 @@ export const INITIAL_MATCHES: MatchScorecard[] = [
     title: 'North Central Division Volleyball League - Round 4',
     tournamentName: 'Provincial Youth Volleyball Tournament',
     sport: 'Volleyball',
-    date: '2026-10-27',
+    date: '2026-10-28',
     time: '04:00 PM',
     venue: 'Gamudawa Community Arena (Indoor Court)',
     status: 'upcoming',
@@ -368,7 +395,7 @@ export const INITIAL_MATCHES: MatchScorecard[] = [
     title: 'Gamudawa Independence Cup - Cricket Final',
     tournamentName: 'Independence Trophy 2026',
     sport: 'Cricket',
-    date: '2026-02-04',
+    date: '2026-10-14',
     time: '09:00 AM',
     venue: 'Gamudawa Mahinda Rajapaksa Ground',
     status: 'completed',
@@ -397,7 +424,7 @@ export const INITIAL_MATCHES: MatchScorecard[] = [
     title: 'District Open Carrom Championship Quarter Final',
     tournamentName: 'Gamudawa Carrom Masters 2026',
     sport: 'Carrom',
-    date: '2026-03-12',
+    date: '2026-10-05',
     time: '10:30 AM',
     venue: 'Young Star Club House Hall',
     status: 'completed',
